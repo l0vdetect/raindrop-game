@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raindrop Game - Pattern Recognition Challenge</title>
+    <style>
+        :root {
+            --color-bg-primary: #1a1a1a;
+            --color-surface: #2a2a2a;
+            --color-text-primary: #f5f5f5;
+            --color-primary: #32b8c6;
+            --color-accent: #32ff32;
+            --color-danger: #ff3232;
+            --color-info: #3296ff;
+            --radius-base: 8px;
+            --space-16: 16px;
+            --space-20: 20px;
+            --duration-normal: 250ms;
+            --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--color-bg-primary);
+            color: var(--color-text-primary);
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        #gameCanvas {
+            border: 3px solid var(--color-primary);
+            border-radius: var(--radius-base);
+            background: #000;
+            display: block;
+            box-shadow: 0 0 20px rgba(50, 184, 198, 0.3);
+        }
+
+        #statsPanel {
+            position: absolute;
+            top: var(--space-20);
+            left: var(--space-20);
+            display: flex;
+            gap: var(--space-20);
+            font-size: 18px;
+            font-weight: 500;
+            z-index: 10;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: rgba(245, 245, 245, 0.6);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            color: var(--color-accent);
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        #gameCanvas:hover {
+            cursor: crosshair;
+        }
+
+        .menu-overlay,
+        .game-over-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(26, 26, 26, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            backdrop-filter: blur(4px);
+        }
+
+        .menu-overlay.hidden,
+        .game-over-overlay.hidden {
+            display: none;
+        }
+
+        .overlay-content {
+            text-align: center;
+            animation: slideUp 0.5s var(--ease-standard);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            margin: 0 0 var(--space-20) 0;
+            font-size: 48px;
+            color: var(--color-primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .overlay-subtitle {
+            font-size: 18px;
+            color: rgba(245, 245, 245, 0.8);
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            background: var(--color-primary);
+            color: var(--color-bg-primary);
+            border: none;
+            border-radius: var(--radius-base);
+            cursor: pointer;
+            transition: all var(--duration-normal) var(--ease-standard);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: var(--space-20);
+        }
+
+        .btn:hover {
+            background: #3dc8d6;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(50, 184, 198, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .instructions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 30px;
+            text-align: left;
+            font-size: 14px;
+            color: rgba(245, 245, 245, 0.7);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: var(--radius-base);
+            border-left: 3px solid var(--color-primary);
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+        }
+
+        .final-score {
+            font-size: 36px;
+            color: var(--color-accent);
+            margin-bottom: var(--space-20);
+            font-weight: 700;
+        }
+
+        .combo-text {
+            color: var(--color-accent);
+            font-weight: 600;
+        }
+
+        .time-text {
+            color: var(--color-info);
+            font-weight: 600;
+        }
+
+        @media (max-width: 1024px) {
+            #gameCanvas {
+                max-width: 90vw;
+                max-height: 90vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="statsPanel">
+            <div class="stat-item">
+                <span class="stat-label">Score</span>
+                <span class="stat-value" id="scoreDisplay">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Combo</span>
+                <span class="stat-value" id="comboDisplay">0x</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Time</span>
+                <span class="stat-value time-text" id="timeDisplay">120s</span>
+            </div>
+        </div>
+
+        <canvas id="gameCanvas" width="1024" height="768"></canvas>
+
+        <div id="menuOverlay" class="menu-overlay">
+            <div class="overlay-content">
+                <h1>Raindrop Game</h1>
+                <div class="overlay-subtitle">Pattern Recognition Challenge</div>
+                <div class="instructions">
+                    <strong>How to Play:</strong>
+                    <li>Click or tap raindrops to capture them</li>
+                    <li>Build your combo for bonus points</li>
+                    <li>Score points = Base (10) + Combo Bonus (5 × combo)</li>
+                    <li>Game lasts 120 seconds</li>
+                </div>
+                <button class="btn" onclick="startGame()">Start Game</button>
+            </div>
+        </div>
+
+        <div id="gameOverOverlay" class="game-over-overlay hidden">
+            <div class="overlay-content">
+                <h1>Game Over</h1>
+                <div class="final-score" id="finalScore">Final Score: 0</div>
+                <button class="btn" onclick="returnToMenu()">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game Constants
+        const SCREEN_WIDTH = 1024;
+        const SCREEN_HEIGHT = 768;
+        const FPS = 60;
+        const GAME_DURATION = 120; // seconds
+
+        // Color Palette
+        const COLORS = {
+            BLACK: '#000000',
+            WHITE: '#FFFFFF',
+            BLUE: '#3296ff',
+            GREEN: '#32ff32',
+            RED: '#ff3232',
+            CYAN: '#32b8c6',
+            DARK_GRAY: '#282828'
+        };
+
+        // Game State
+        let gameState = 'menu'; // menu, playing, gameOver
+        let canvas = document.getElementById('gameCanvas');
+        let ctx = canvas.getContext('2d');
+        let animationFrameId;
+
+        // Game Variables
+        let score = 0;
+        let combo = 0;
+        let drops = [];
+        let timeRemaining = GAME_DURATION;
+        let frameCount = 0;
+        let playerX = SCREEN_WIDTH / 2;
+        let playerY = SCREEN_HEIGHT - 60;
+
+        // Mouse tracking
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            playerX = e.clientX - rect.left;
+            playerY = e.clientY - rect.top;
+        });
+
+        // Touch support
+        canvas.addEventListener('touchmove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            playerX = touch.clientX - rect.left;
+            playerY = touch.clientY - rect.top;
+            e.preventDefault();
+        });
+
+        // Click/Tap handler
+        canvas.addEventListener('click', handleClick);
+        canvas.addEventListener('touchend', handleClick);
+
+        function handleClick(e) {
+            if (gameState !== 'playing') return;
+
+            let clickX, clickY;
+            if (e.touches) {
+                const rect = canvas.getBoundingClientRect();
+                clickX = e.changedTouches[0].clientX - rect.left;
+                clickY = e.changedTouches[0].clientY - rect.top;
+            } else {
+                const rect = canvas.getBoundingClientRect();
+                clickX = e.clientX - rect.left;
+                clickY = e.clientY - rect.top;
+            }
+
+            // Check collision with drops
+            for (let i = drops.length - 1; i >= 0; i--) {
+                const drop = drops[i];
+                const dx = drop.x - clickX;
+                const dy = drop.y - clickY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < drop.size + 20) {
+                    drops.splice(i, 1);
+                    score += 10 + combo * 5;
+                    combo++;
+                    updateStats();
+                }
+            }
+        }
+
+        function spawnRaindrop() {
+            if (frameCount % 10 === 0) {
+                const x = Math.random() * (SCREEN_WIDTH - 40) + 20;
+                const y = -20;
+                const speed = 4;
+                const size = Math.random() * 7 + 8;
+
+                drops.push({ x, y, speed, size });
+            }
+        }
+
+        function updateDrops() {
+            for (let i = drops.length - 1; i >= 0; i--) {
+                const drop = drops[i];
+                drop.y += drop.speed;
+
+                if (drop.y > SCREEN_HEIGHT) {
+                    drops.splice(i, 1);
+                    combo = 0; // Reset combo on missed drops
+                    updateStats();
+                }
+            }
+        }
+
+        function update() {
+            frameCount++;
+
+            if (gameState === 'playing') {
+                timeRemaining = Math.max(0, GAME_DURATION - Math.floor(frameCount / FPS));
+                spawnRaindrop();
+                updateDrops();
+
+                if (timeRemaining === 0) {
+                    gameState = 'gameOver';
+                    showGameOver();
+                }
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = COLORS.BLACK;
+            ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+
+            // Draw raindrops
+            drops.forEach(drop => {
+                ctx.fillStyle = COLORS.BLUE;
+                ctx.beginPath();
+                ctx.arc(drop.x, drop.y, drop.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // Draw player cursor
+            ctx.fillStyle = COLORS.GREEN;
+            ctx.beginPath();
+            ctx.arc(playerX, playerY, 20, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw cursor glow
+            ctx.strokeStyle = 'rgba(50, 255, 50, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(playerX, playerY, 28, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function updateStats() {
+            document.getElementById('scoreDisplay').textContent = score;
+            document.getElementById('comboDisplay').textContent = combo + 'x';
+            document.getElementById('timeDisplay').textContent = timeRemaining + 's';
+        }
+
+        function startGame() {
+            gameState = 'playing';
+            score = 0;
+            combo = 0;
+            drops = [];
+            timeRemaining = GAME_DURATION;
+            frameCount = 0;
+            playerX = SCREEN_WIDTH / 2;
+            playerY = SCREEN_HEIGHT - 60;
+
+            document.getElementById('menuOverlay').classList.add('hidden');
+            document.getElementById('gameOverOverlay').classList.add('hidden');
+
+            updateStats();
+            gameLoop();
+        }
+
+        function showGameOver() {
+            cancelAnimationFrame(animationFrameId);
+            document.getElementById('finalScore').textContent = `Final Score: ${score}`;
+            document.getElementById('gameOverOverlay').classList.remove('hidden');
+        }
+
+        function returnToMenu() {
+            gameState = 'menu';
+            cancelAnimationFrame(animationFrameId);
+            document.getElementById('menuOverlay').classList.remove('hidden');
+            document.getElementById('gameOverOverlay').classList.add('hidden');
+            frameCount = 0;
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ') {
+                if (gameState === 'menu') startGame();
+                else if (gameState === 'gameOver') returnToMenu();
+            }
+            if (e.key === 'Escape' && gameState === 'playing') {
+                returnToMenu();
+            }
+        });
+
+        // Initialize
+        updateStats();
+    </script>
+</body>
+</html>

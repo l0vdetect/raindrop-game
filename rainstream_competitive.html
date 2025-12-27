@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAINSTREAM COMPETITIVE - Human vs AI</title>
+    <style>
+        :root {
+            --color-dark: #0f0f0f;
+            --color-surface: #1a1a1a;
+            --color-text: #f5f5f5;
+            --color-p1: #4db8ff;
+            --color-p2: #ff6b6b;
+            --color-ai: #51cf66;
+            --color-accent: #ffd700;
+            --radius: 8px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Monaco', 'Courier New', monospace;
+            background: var(--color-dark);
+            color: var(--color-text);
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            grid-template-rows: auto 1fr auto;
+            width: 100vw;
+            height: 100vh;
+            gap: 12px;
+            padding: 12px;
+        }
+
+        /* HEADER */
+        .header {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+            padding: 16px;
+            border-radius: var(--radius);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            color: var(--color-accent);
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .status {
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+        }
+
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .status-label {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--color-accent);
+        }
+
+        /* PLAYER PANELS */
+        .player-panel {
+            background: var(--color-surface);
+            border: 2px solid;
+            border-radius: var(--radius);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 300px;
+        }
+
+        .player-panel.p1 {
+            border-color: var(--color-p1);
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        .player-panel.p2 {
+            border-color: var(--color-p2);
+            grid-column: 3;
+            grid-row: 2;
+        }
+
+        .ai-panel {
+            border-color: var(--color-ai);
+            grid-column: 1 / -1;
+            grid-row: 3;
+        }
+
+        .player-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .player-panel.p1 .player-name {
+            color: var(--color-p1);
+        }
+
+        .player-panel.p2 .player-name {
+            color: var(--color-p2);
+        }
+
+        .ai-panel .player-name {
+            color: var(--color-ai);
+        }
+
+        .score-display {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 16px 0;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .player-panel.p1 .score-display {
+            color: var(--color-p1);
+        }
+
+        .player-panel.p2 .score-display {
+            color: var(--color-p2);
+        }
+
+        .ai-panel .score-display {
+            color: var(--color-ai);
+        }
+
+        .stat-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 8px 0;
+            font-size: 12px;
+        }
+
+        .stat {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px;
+            border-radius: 4px;
+            border-left: 2px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-label {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--color-text);
+            margin-top: 4px;
+        }
+
+        /* MAIN CANVAS AREA */
+        .canvas-area {
+            grid-column: 2;
+            grid-row: 2;
+            background: #000;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #gameCanvas {
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
+        }
+
+        .canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 12px;
+        }
+
+        .pattern-meter {
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            align-self: flex-end;
+        }
+
+        .pattern-bar {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            margin-top: 4px;
+            overflow: hidden;
+        }
+
+        .pattern-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #51cf66, #ffd700);
+            width: 0%;
+            transition: width 0.2s;
+        }
+
+        /* RANKING */
+        .ranking {
+            background: var(--color-surface);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius);
+            padding: 16px;
+            grid-column: 2;
+            grid-row: 3;
+            min-height: 80px;
+        }
+
+        .ranking h3 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            color: var(--color-accent);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .ranking-list {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+
+        .ranking-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+            border-left: 3px solid;
+        }
+
+        .ranking-item.p1 {
+            border-left-color: var(--color-p1);
+        }
+
+        .ranking-item.p2 {
+            border-left-color: var(--color-p2);
+        }
+
+        .ranking-item.ai {
+            border-left-color: var(--color-ai);
+        }
+
+        .ranking-place {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--color-accent);
+        }
+
+        .ranking-name {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 4px;
+        }
+
+        .ranking-score {
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 4px;
+        }
+
+        .ranking-item.p1 .ranking-score {
+            color: var(--color-p1);
+        }
+
+        .ranking-item.p2 .ranking-score {
+            color: var(--color-p2);
+        }
+
+        .ranking-item.ai .ranking-score {
+            color: var(--color-ai);
+        }
+
+        /* CONTROLS */
+        .controls {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: var(--radius);
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--color-accent);
+            color: var(--color-dark);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(255, 215, 0, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--color-text);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* MENU */
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 15, 15, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .menu-overlay.hidden {
+            display: none;
+        }
+
+        .menu-content {
+            text-align: center;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .menu-content h1 {
+            font-size: 48px;
+            color: var(--color-accent);
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            margin-bottom: 20px;
+        }
+
+        .menu-subtitle {
+            font-size: 18px;
+            color: rgba(245, 245, 245, 0.7);
+            margin-bottom: 40px;
+        }
+
+        .menu-controls {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        select {
+            padding: 10px 12px;
+            background: var(--color-surface);
+            color: var(--color-text);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius);
+            font-size: 14px;
+        }
+
+        .rules {
+            background: rgba(255, 255, 255, 0.05);
+            border-left: 3px solid var(--color-accent);
+            padding: 20px;
+            margin: 30px auto 0;
+            max-width: 600px;
+            text-align: left;
+            border-radius: var(--radius);
+        }
+
+        .rules h3 {
+            margin: 0 0 12px 0;
+            color: var(--color-accent);
+        }
+
+        .rules ul {
+            margin: 0;
+            padding-left: 20px;
+            color: rgba(245, 245, 245, 0.7);
+        }
+
+        .rules li {
+            margin: 6px 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- MENU -->
+    <div id="menuOverlay" class="menu-overlay">
+        <div class="menu-content">
+            <h1>⚡ RAINSTREAM</h1>
+            <div class="menu-subtitle">Competitive Pattern Recognition</div>
+            
+            <div class="menu-controls">
+                <select id="aiDifficulty">
+                    <option value="easy">AI: EASY</option>
+                    <option value="medium" selected>AI: MEDIUM</option>
+                    <option value="hard">AI: HARD</option>
+                </select>
+            </div>
+            
+            <div class="rules">
+                <h3>🎮 Rules</h3>
+                <ul>
+                    <li><strong>P1 (Left):</strong> Click left side to capture raindrops</li>
+                    <li><strong>P2 (Right):</strong> Click right side to capture raindrops</li>
+                    <li><strong>AI:</strong> Autonomous opponent with selected difficulty</li>
+                    <li><strong>Score:</strong> Base (10) + Combo Bonus + Pattern Bonus</li>
+                    <li><strong>Duration:</strong> 30 seconds of intense competition</li>
+                </ul>
+            </div>
+            
+            <button class="btn-primary" style="margin-top: 30px;" onclick="startGame()">
+                START GAME
+            </button>
+        </div>
+    </div>
+
+    <!-- GAME CONTAINER -->
+    <div class="container">
+        <div class="header">
+            <h1>⚡ RAINSTREAM COMPETITIVE</h1>
+            <div class="status">
+                <div class="status-item">
+                    <span class="status-label">Time</span>
+                    <span class="status-value" id="timeDisplay">30s</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Total Drops</span>
+                    <span class="status-value" id="totalDropsDisplay">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Clicks</span>
+                    <span class="status-value" id="totalClicksDisplay">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- PLAYER 1 -->
+        <div class="player-panel p1">
+            <div>
+                <div class="player-name">🔵 Player 1</div>
+                <div class="score-display" id="p1Score">0</div>
+            </div>
+            <div class="stat-row">
+                <div class="stat">
+                    <div class="stat-label">Hits</div>
+                    <div class="stat-value" id="p1Hits">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Accuracy</div>
+                    <div class="stat-value" id="p1Accuracy">0%</div>
+                </div>
+            </div>
+            <div class="stat-row">
+                <div class="stat">
+                    <div class="stat-label">Combo Max</div>
+                    <div class="stat-value" id="p1ComboMax">0x</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Reaction</div>
+                    <div class="stat-value" id="p1Reaction">0ms</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CANVAS -->
+        <div class="canvas-area">
+            <canvas id="gameCanvas" width="1024" height="768"></canvas>
+            <div class="canvas-overlay">
+                <div></div>
+                <div class="pattern-meter">
+                    <div>Pattern Complexity</div>
+                    <div class="pattern-bar">
+                        <div class="pattern-bar-fill" id="patternFill"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PLAYER 2 -->
+        <div class="player-panel p2">
+            <div>
+                <div class="player-name">🔴 Player 2</div>
+                <div class="score-display" id="p2Score">0</div>
+            </div>
+            <div class="stat-row">
+                <div class="stat">
+                    <div class="stat-label">Hits</div>
+                    <div class="stat-value" id="p2Hits">0</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Accuracy</div>
+                    <div class="stat-value" id="p2Accuracy">0%</div>
+                </div>
+            </div>
+            <div class="stat-row">
+                <div class="stat">
+                    <div class="stat-label">Combo Max</div>
+                    <div class="stat-value" id="p2ComboMax">0x</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Reaction</div>
+                    <div class="stat-value" id="p2Reaction">0ms</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RANKING -->
+        <div class="ranking">
+            <h3>📊 Ranking</h3>
+            <div class="ranking-list">
+                <div class="ranking-item p1">
+                    <div class="ranking-place">#1</div>
+                    <div class="ranking-name" id="rank1Name">-</div>
+                    <div class="ranking-score" id="rank1Score">0</div>
+                </div>
+                <div class="ranking-item ai">
+                    <div class="ranking-place">#2</div>
+                    <div class="ranking-name" id="rank2Name">-</div>
+                    <div class="ranking-score" id="rank2Score">0</div>
+                </div>
+                <div class="ranking-item p2">
+                    <div class="ranking-place">#3</div>
+                    <div class="ranking-name" id="rank3Name">-</div>
+                    <div class="ranking-score" id="rank3Score">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI PANEL -->
+        <div class="player-panel ai-panel">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                <div>
+                    <div class="player-name">🤖 AI Agent</div>
+                    <div class="score-display" id="aiScore">0</div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div class="stat">
+                        <div class="stat-label">Difficulty</div>
+                        <div class="stat-value" id="aiDiff">MEDIUM</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Hits</div>
+                        <div class="stat-value" id="aiHits">0</div>
+                    </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <div class="stat">
+                        <div class="stat-label">Strategy</div>
+                        <div class="stat-value" id="aiStrategy">CLUSTER</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Accuracy</div>
+                        <div class="stat-value" id="aiAccuracy">0%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let gameActive = false;
+        let gameTime = 30;
+        let frameCount = 0;
+        let drops = [];
+        let scores = {
+            p1: { hits: 0, misses: 0, combo: 0, score: 0, reactions: [] },
+            p2: { hits: 0, misses: 0, combo: 0, score: 0, reactions: [] },
+            ai: { hits: 0, misses: 0, combo: 0, score: 0, reactions: [], difficulty: 'medium' }
+        };
+        
+        let patternComplexity = 0;
+        let aiDecisions = [];
+
+        // Mouse tracking
+        document.getElementById('gameCanvas').addEventListener('click', (e) => {
+            if (!gameActive) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            // Determine which player based on x position
+            const playerId = x < canvas.width / 2 ? 'p1' : 'p2';
+            processClick(playerId, x, y);
+        });
+
+        function processClick(playerId, clickX, clickY) {
+            let hit = false;
+            let closestDist = Infinity;
+            
+            for (let i = drops.length - 1; i >= 0; i--) {
+                const drop = drops[i];
+                const dx = drop.x - clickX;
+                const dy = drop.y - clickY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < drop.size + 15) {
+                    drops.splice(i, 1);
+                    hit = true;
+                    scores[playerId].hits++;
+                    scores[playerId].combo++;
+                    scores[playerId].score += 10 + scores[playerId].combo * 5;
+                    break;
+                }
+                closestDist = Math.min(closestDist, dist);
+            }
+            
+            if (!hit) {
+                scores[playerId].misses++;
+                scores[playerId].combo = 0;
+            }
+            
+            updateDisplay();
+        }
+
+        function spawnDroplets() {
+            if (frameCount % 8 === 0) {
+                const count = Math.floor(Math.random() * 3) + 1;
+                for (let i = 0; i < count; i++) {
+                    drops.push({
+                        x: Math.random() * (canvas.width - 40) + 20,
+                        y: -20,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: Math.random() * 3 + 2,
+                        size: Math.random() * 6 + 6,
+                        life: 1.0
+                    });
+                }
+            }
+            
+            // AI click logic
+            if (frameCount % 12 === 0 && drops.length > 0) {
+                let target;
+                if (scores.ai.difficulty === 'easy') {
+                    target = drops[Math.floor(Math.random() * drops.length)];
+                } else if (scores.ai.difficulty === 'medium') {
+                    target = drops.reduce((a, b) => a.size > b.size ? a : b);
+                } else {
+                    target = drops[0]; // Hard: always gets first
+                }
+                
+                processClick('ai', target.x, target.y);
+            }
+        }
+
+        function updateDroplets() {
+            for (let i = drops.length - 1; i >= 0; i--) {
+                const drop = drops[i];
+                drop.x += drop.vx;
+                drop.y += drop.vy;
+                
+                if (drop.y > canvas.height) {
+                    drops.splice(i, 1);
+                }
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw drops
+            drops.forEach(drop => {
+                ctx.fillStyle = `rgba(50, 180, 255, ${drop.life})`;
+                ctx.beginPath();
+                ctx.arc(drop.x, drop.y, drop.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.strokeStyle = `rgba(100, 200, 255, ${drop.life * 0.5})`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+            
+            // Player divider
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function updateDisplay() {
+            document.getElementById('p1Score').textContent = scores.p1.score;
+            document.getElementById('p2Score').textContent = scores.p2.score;
+            document.getElementById('aiScore').textContent = scores.ai.score;
+            
+            document.getElementById('p1Hits').textContent = scores.p1.hits;
+            document.getElementById('p2Hits').textContent = scores.p2.hits;
+            document.getElementById('aiHits').textContent = scores.ai.hits;
+            
+            const p1Acc = scores.p1.hits + scores.p1.misses > 0 
+                ? Math.round(scores.p1.hits / (scores.p1.hits + scores.p1.misses) * 100) 
+                : 0;
+            const p2Acc = scores.p2.hits + scores.p2.misses > 0 
+                ? Math.round(scores.p2.hits / (scores.p2.hits + scores.p2.misses) * 100) 
+                : 0;
+            const aiAcc = scores.ai.hits + scores.ai.misses > 0 
+                ? Math.round(scores.ai.hits / (scores.ai.hits + scores.ai.misses) * 100) 
+                : 0;
+            
+            document.getElementById('p1Accuracy').textContent = p1Acc + '%';
+            document.getElementById('p2Accuracy').textContent = p2Acc + '%';
+            document.getElementById('aiAccuracy').textContent = aiAcc + '%';
+            
+            document.getElementById('p1ComboMax').textContent = scores.p1.combo + 'x';
+            document.getElementById('p2ComboMax').textContent = scores.p2.combo + 'x';
+            
+            document.getElementById('totalDropsDisplay').textContent = drops.length;
+            document.getElementById('totalClicksDisplay').textContent = 
+                (scores.p1.hits + scores.p1.misses + scores.p2.hits + scores.p2.misses + scores.ai.hits + scores.ai.misses);
+            
+            // Ranking
+            const ranking = [
+                { name: 'P1', score: scores.p1.score, type: 'p1' },
+                { name: 'AI', score: scores.ai.score, type: 'ai' },
+                { name: 'P2', score: scores.p2.score, type: 'p2' }
+            ].sort((a, b) => b.score - a.score);
+            
+            ranking.forEach((item, i) => {
+                document.getElementById(`rank${i+1}Name`).textContent = item.name;
+                document.getElementById(`rank${i+1}Score`).textContent = item.score;
+            });
+            
+            // Pattern meter
+            patternComplexity = Math.min(100, drops.length * 5);
+            document.getElementById('patternFill').style.width = patternComplexity + '%';
+        }
+
+        function gameLoop() {
+            frameCount++;
+            
+            if (gameActive) {
+                spawnDroplets();
+                updateDroplets();
+                draw();
+                updateDisplay();
+                
+                if (frameCount % 60 === 0) {
+                    gameTime--;
+                    document.getElementById('timeDisplay').textContent = gameTime + 's';
+                    
+                    if (gameTime <= 0) {
+                        endGame();
+                        return;
+                    }
+                }
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            gameActive = true;
+            gameTime = 30;
+            frameCount = 0;
+            drops = [];
+            scores = {
+                p1: { hits: 0, misses: 0, combo: 0, score: 0, reactions: [] },
+                p2: { hits: 0, misses: 0, combo: 0, score: 0, reactions: [] },
+                ai: { hits: 0, misses: 0, combo: 0, score: 0, reactions: [], difficulty: document.getElementById('aiDifficulty').value }
+            };
+            
+            document.getElementById('menuOverlay').classList.add('hidden');
+            document.getElementById('timeDisplay').textContent = '30s';
+            document.getElementById('aiDiff').textContent = scores.ai.difficulty.toUpperCase();
+            
+            gameLoop();
+        }
+
+        function endGame() {
+            gameActive = false;
+            console.log('Game Over!', scores);
+            // Add game over overlay here
+        }
+
+        // Start
+        updateDisplay();
+        gameLoop();
+    </script>
+</body>
+</html>
