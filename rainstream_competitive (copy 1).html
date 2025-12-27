@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAINSTREAM COMPETITIVE</title>
+    <style>
+        :root {
+            --dark: #0f0f0f;
+            --surface: #1a1a1a;
+            --text: #f5f5f5;
+            --p1: #4db8ff;
+            --p2: #ff6b6b;
+            --ai: #51cf66;
+            --accent: #ffd700;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; font-family: 'Monaco', 'Courier New', monospace; background: var(--dark); color: var(--text); overflow: hidden; }
+        .container { display: grid; grid-template-columns: 1fr 2fr 1fr; grid-template-rows: auto 1fr auto; width: 100vw; height: 100vh; gap: 12px; padding: 12px; }
+        .header { grid-column: 1 / -1; background: linear-gradient(135deg, #1a1a1a, #2a2a2a); padding: 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { margin: 0; font-size: 28px; color: var(--accent); text-shadow: 0 0 10px rgba(255,215,0,0.5); }
+        .status { display: flex; gap: 20px; }
+        .status-item { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+        .status-label { color: rgba(255,255,255,0.5); font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .status-value { font-size: 18px; font-weight: bold; color: var(--accent); }
+        .player-panel { background: var(--surface); border: 2px solid; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; min-height: 300px; }
+        .player-panel.p1 { border-color: var(--p1); grid-column: 1; grid-row: 2; }
+        .player-panel.p2 { border-color: var(--p2); grid-column: 3; grid-row: 2; }
+        .ai-panel { border-color: var(--ai); grid-column: 1 / -1; grid-row: 3; }
+        .player-name { font-size: 18px; font-weight: bold; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .player-panel.p1 .player-name { color: var(--p1); }
+        .player-panel.p2 .player-name { color: var(--p2); }
+        .ai-panel .player-name { color: var(--ai); }
+        .score-display { font-size: 48px; font-weight: bold; margin: 16px 0; text-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .player-panel.p1 .score-display { color: var(--p1); }
+        .player-panel.p2 .score-display { color: var(--p2); }
+        .ai-panel .score-display { color: var(--ai); }
+        .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 8px 0; font-size: 12px; }
+        .stat { background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px; border-left: 2px solid rgba(255,255,255,0.2); }
+        .stat-label { color: rgba(255,255,255,0.6); font-size: 10px; text-transform: uppercase; }
+        .stat-value { font-size: 14px; font-weight: bold; color: var(--text); margin-top: 4px; }
+        .canvas-area { grid-column: 2; grid-row: 2; background: #000; border: 3px solid rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+        #gameCanvas { max-width: 100%; max-height: 100%; display: block; }
+        .canvas-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 12px; }
+        .pattern-meter { background: rgba(0,0,0,0.7); padding: 8px 12px; border-radius: 4px; font-size: 12px; align-self: flex-end; }
+        .pattern-bar { height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+        .pattern-bar-fill { height: 100%; background: linear-gradient(90deg, #51cf66, #ffd700); width: 0%; transition: width 0.2s; }
+        .ranking { background: var(--surface); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 16px; grid-column: 2; grid-row: 3; }
+        .ranking h3 { margin: 0 0 12px 0; font-size: 14px; color: var(--accent); text-transform: uppercase; }
+        .ranking-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .ranking-item { background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px; text-align: center; border-left: 3px solid; }
+        .ranking-item.p1 { border-left-color: var(--p1); }
+        .ranking-item.p2 { border-left-color: var(--p2); }
+        .ranking-item.ai { border-left-color: var(--ai); }
+        .ranking-place { font-size: 20px; font-weight: bold; color: var(--accent); }
+        .ranking-name { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+        .ranking-score { font-size: 16px; font-weight: bold; margin-top: 4px; }
+        .ranking-item.p1 .ranking-score { color: var(--p1); }
+        .ranking-item.p2 .ranking-score { color: var(--p2); }
+        .ranking-item.ai .ranking-score { color: var(--ai); }
+        .menu-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,15,15,0.95); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
+        .menu-overlay.hidden { display: none; }
+        .menu-content { text-align: center; animation: slideUp 0.5s ease-out; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .menu-content h1 { font-size: 48px; color: var(--accent); text-shadow: 0 0 20px rgba(255,215,0,0.5); margin-bottom: 20px; }
+        .menu-subtitle { font-size: 18px; color: rgba(245,245,245,0.7); margin-bottom: 40px; }
+        .menu-controls { display: flex; gap: 12px; justify-content: center; margin-bottom: 30px; }
+        select { padding: 10px 12px; background: var(--surface); color: var(--text); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-size: 14px; }
+        .rules { background: rgba(255,255,255,0.05); border-left: 3px solid var(--accent); padding: 20px; margin: 30px auto 0; max-width: 600px; text-align: left; border-radius: 8px; }
+        .rules h3 { margin: 0 0 12px 0; color: var(--accent); }
+        .rules ul { margin: 0; padding-left: 20px; color: rgba(245,245,245,0.7); }
+        .rules li { margin: 6px 0; }
+        button { padding: 12px 30px; background: var(--accent); color: var(--dark); border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px; text-transform: uppercase; transition: all 0.2s; }
+        button:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(255,215,0,0.3); }
+    </style>
+</head>
+<body>
+    <div id="menuOverlay" class="menu-overlay">
+        <div class="menu-content">
+            <h1>⚡ RAINSTREAM</h1>
+            <div class="menu-subtitle">Competitive Pattern Recognition</div>
+            <div class="menu-controls">
+                <select id="aiDifficulty">
+                    <option value="easy">AI: EASY</option>
+                    <option value="medium" selected>AI: MEDIUM</option>
+                    <option value="hard">AI: HARD</option>
+                </select>
+            </div>
+            <div class="rules">
+                <h3>🎮 Rules</h3>
+                <ul>
+                    <li><strong>P1 (Left):</strong> Click left side</li>
+                    <li><strong>P2 (Right):</strong> Click right side</li>
+                    <li><strong>AI:</strong> Autonomous opponent</li>
+                    <li><strong>Score:</strong> Base (10) + Combo</li>
+                    <li><strong>Duration:</strong> 30 seconds</li>
+                </ul>
+            </div>
+            <button onclick="startGame()">START GAME</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>⚡ RAINSTREAM COMPETITIVE</h1>
+            <div class="status">
+                <div class="status-item"><span class="status-label">Time</span><span class="status-value" id="timeDisplay">30s</span></div>
+                <div class="status-item"><span class="status-label">Drops</span><span class="status-value" id="totalDropsDisplay">0</span></div>
+                <div class="status-item"><span class="status-label">Clicks</span><span class="status-value" id="totalClicksDisplay">0</span></div>
+            </div>
+        </div>
+
+        <div class="player-panel p1">
+            <div>
+                <div class="player-name">🔵 Player 1</div>
+                <div class="score-display" id="p1Score">0</div>
+            </div>
+            <div class="stat-row">
+                <div class="stat"><div class="stat-label">Hits</div><div class="stat-value" id="p1Hits">0</div></div>
+                <div class="stat"><div class="stat-label">Acc</div><div class="stat-value" id="p1Accuracy">0%</div></div>
+            </div>
+            <div class="stat-row">
+                <div class="stat"><div class="stat-label">Combo</div><div class="stat-value" id="p1ComboMax">0x</div></div>
+                <div class="stat"><div class="stat-label">React</div><div class="stat-value" id="p1Reaction">0ms</div></div>
+            </div>
+        </div>
+
+        <div class="canvas-area">
+            <canvas id="gameCanvas" width="1024" height="768"></canvas>
+            <div class="canvas-overlay">
+                <div></div>
+                <div class="pattern-meter">
+                    <div>Pattern Complexity</div>
+                    <div class="pattern-bar"><div class="pattern-bar-fill" id="patternFill"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="player-panel p2">
+            <div>
+                <div class="player-name">🔴 Player 2</div>
+                <div class="score-display" id="p2Score">0</div>
+            </div>
+            <div class="stat-row">
+                <div class="stat"><div class="stat-label">Hits</div><div class="stat-value" id="p2Hits">0</div></div>
+                <div class="stat"><div class="stat-label">Acc</div><div class="stat-value" id="p2Accuracy">0%</div></div>
+            </div>
+            <div class="stat-row">
+                <div class="stat"><div class="stat-label">Combo</div><div class="stat-value" id="p2ComboMax">0x</div></div>
+                <div class="stat"><div class="stat-label">React</div><div class="stat-value" id="p2Reaction">0ms</div></div>
+            </div>
+        </div>
+
+        <div class="ranking">
+            <h3>📊 Ranking</h3>
+            <div class="ranking-list">
+                <div class="ranking-item p1"><div class="ranking-place">#1</div><div class="ranking-name" id="rank1Name">-</div><div class="ranking-score" id="rank1Score">0</div></div>
+                <div class="ranking-item ai"><div class="ranking-place">#2</div><div class="ranking-name" id="rank2Name">-</div><div class="ranking-score" id="rank2Score">0</div></div>
+                <div class="ranking-item p2"><div class="ranking-place">#3</div><div class="ranking-name" id="rank3Name">-</div><div class="ranking-score" id="rank3Score">0</div></div>
+            </div>
+        </div>
+
+        <div class="player-panel ai-panel">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px">
+                <div><div class="player-name">🤖 AI</div><div class="score-display" id="aiScore">0</div></div>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                    <div class="stat"><div class="stat-label">Diff</div><div class="stat-value" id="aiDiff">MEDIUM</div></div>
+                    <div class="stat"><div class="stat-label">Hits</div><div class="stat-value" id="aiHits">0</div></div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                    <div class="stat"><div class="stat-label">Strat</div><div class="stat-value" id="aiStrategy">CLUSTER</div></div>
+                    <div class="stat"><div class="stat-label">Acc</div><div class="stat-value" id="aiAccuracy">0%</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        let gameActive = false, gameTime = 30, frameCount = 0, drops = [], patternComplexity = 0;
+        let scores = {
+            p1: { hits: 0, misses: 0, combo: 0, score: 0, reactions: [] },
+            p2: { hits: 0, misses: 0, combo: 0, score: 0, reactions: [] },
+            ai: { hits: 0, misses: 0, combo: 0, score: 0, reactions: [], difficulty: 'medium' }
+        };
+
+        canvas.addEventListener('click', (e) => {
+            if (!gameActive) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const playerId = x < canvas.width / 2 ? 'p1' : 'p2';
+            processClick(playerId, x, y);
+        });
+
+        function processClick(playerId, clickX, clickY) {
+            let hit = false;
+            for (let i = drops.length - 1; i >= 0; i--) {
+                const drop = drops[i];
+                const dx = drop.x - clickX, dy = drop.y - clickY;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < drop.size + 15) {
+                    drops.splice(i, 1);
+                    hit = true;
+                    scores[playerId].hits++;
+                    scores[playerId].combo++;
+                    scores[playerId].score += 10 + scores[playerId].combo * 5;
+                    break;
+                }
+            }
+            if (!hit) { scores[playerId].misses++; scores[playerId].combo = 0; }
+            updateDisplay();
+        }
+
+        function spawnDroplets() {
+            if (frameCount % 8 === 0) {
+                const count = Math.floor(Math.random() * 3) + 1;
+                for (let i = 0; i < count; i++) {
+                    drops.push({
+                        x: Math.random() * (canvas.width - 40) + 20,
+                        y: -20,
+                        vx: (Math.random() - 0.5) * 2,
+                        vy: Math.random() * 3 + 2,
+                        size: Math.random() * 6 + 6,
+                        life: 1.0
+                    });
+                }
+            }
+            if (frameCount % 12 === 0 && drops.length > 0) {
+                let target;
+                if (scores.ai.difficulty === 'easy') target = drops[Math.floor(Math.random() * drops.length)];
+                else if (scores.ai.difficulty === 'medium') target = drops.reduce((a, b) => a.size > b.size ? a : b);
+                else target = drops[0];
+                processClick('ai', target.x, target.y);
+            }
+        }
+
+        function updateDroplets() {
+            for (let i = drops.length - 1; i >= 0; i--) {
+                const drop = drops[i];
+                drop.x += drop.vx;
+                drop.y += drop.vy;
+                if (drop.y > canvas.height) drops.splice(i, 1);
+            }
+        }
+
+        function draw() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            drops.forEach(drop => {
+                ctx.fillStyle = `rgba(50,180,255,${drop.life})`;
+                ctx.beginPath();
+                ctx.arc(drop.x, drop.y, drop.size, 0, Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle = `rgba(100,200,255,${drop.life*0.5})`;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+            ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5,5]);
+            ctx.beginPath();
+            ctx.moveTo(canvas.width/2, 0);
+            ctx.lineTo(canvas.width/2, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function updateDisplay() {
+            document.getElementById('p1Score').textContent = scores.p1.score;
+            document.getElementById('p2Score').textContent = scores.p2.score;
+            document.getElementById('aiScore').textContent = scores.ai.score;
+            document.getElementById('p1Hits').textContent = scores.p1.hits;
+            document.getElementById('p2Hits').textContent = scores.p2.hits;
+            document.getElementById('aiHits').textContent = scores.ai.hits;
+
+            const p1Acc = scores.p1.hits + scores.p1.misses > 0 ? Math.round(scores.p1.hits/(scores.p1.hits+scores.p1.misses)*100) : 0;
+            const p2Acc = scores.p2.hits + scores.p2.misses > 0 ? Math.round(scores.p2.hits/(scores.p2.hits+scores.p2.misses)*100) : 0;
+            const aiAcc = scores.ai.hits + scores.ai.misses > 0 ? Math.round(scores.ai.hits/(scores.ai.hits+scores.ai.misses)*100) : 0;
+            document.getElementById('p1Accuracy').textContent = p1Acc + '%';
+            document.getElementById('p2Accuracy').textContent = p2Acc + '%';
+            document.getElementById('aiAccuracy').textContent = aiAcc + '%';
+            document.getElementById('p1ComboMax').textContent = scores.p1.combo + 'x';
+            document.getElementById('p2ComboMax').textContent = scores.p2.combo + 'x';
+            document.getElementById('totalDropsDisplay').textContent = drops.length;
+            document.getElementById('totalClicksDisplay').textContent = (scores.p1.hits+scores.p1.misses+scores.p2.hits+scores.p2.misses+scores.ai.hits+scores.ai.misses);
+
+            const ranking = [
+                { name: 'P1', score: scores.p1.score, type: 'p1' },
+                { name: 'AI', score: scores.ai.score, type: 'ai' },
+                { name: 'P2', score: scores.p2.score, type: 'p2' }
+            ].sort((a, b) => b.score - a.score);
+            ranking.forEach((item, i) => {
+                document.getElementById(`rank${i+1}Name`).textContent = item.name;
+                document.getElementById(`rank${i+1}Score`).textContent = item.score;
+            });
+            patternComplexity = Math.min(100, drops.length * 5);
+            document.getElementById('patternFill').style.width = patternComplexity + '%';
+        }
+
+        function gameLoop() {
+            frameCount++;
+            if (gameActive) {
+                spawnDroplets();
+                updateDroplets();
+                draw();
+                updateDisplay();
+                if (frameCount % 60 === 0) {
+                    gameTime--;
+                    document.getElementById('timeDisplay').textContent = gameTime + 's';
+                    if (gameTime <= 0) { endGame(); return; }
+                }
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            gameActive = true;
+            gameTime = 30;
+            frameCount = 0;
+            drops = [];
+            scores = {
+                p1: { hits: 0, misses: 0, combo: 0, score: 0, reactions: [] },
+                p2: { hits: 0, misses: 0, combo: 0, score: 0, reactions: [] },
+                ai: { hits: 0, misses: 0, combo: 0, score: 0, reactions: [], difficulty: document.getElementById('aiDifficulty').value }
+            };
+            document.getElementById('menuOverlay').classList.add('hidden');
+            document.getElementById('timeDisplay').textContent = '30s';
+            document.getElementById('aiDiff').textContent = scores.ai.difficulty.toUpperCase();
+            gameLoop();
+        }
+
+        function endGame() {
+            gameActive = false;
+            const ranking = [
+                { name: 'P1', score: scores.p1.score },
+                { name: 'AI', score: scores.ai.score },
+                { name: 'P2', score: scores.p2.score }
+            ].sort((a, b) => b.score - a.score);
+            alert(`GAME OVER!\n\n🏆 ${ranking[0].name}: ${ranking[0].score}\n2nd ${ranking[1].name}: ${ranking[1].score}\n3rd ${ranking[2].name}: ${ranking[2].score}`);
+        }
+
+        updateDisplay();
+        gameLoop();
+    </script>
+</body>
+</html>

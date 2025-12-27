@@ -1,0 +1,41 @@
+{
+  "metadata": {
+    "timestamp": "2025-12-26T03:35:58.902174",
+    "ai_difficulty": "medium"
+  },
+  "players": {
+    "p1": {
+      "hits": 1654,
+      "accuracy": 65.5,
+      "score": 16540
+    },
+    "p2": {
+      "hits": 1532,
+      "accuracy": 59.6,
+      "score": 15320
+    },
+    "ai": {
+      "hits": 2148,
+      "accuracy": 85.1,
+      "score": 21480,
+      "difficulty": "medium"
+    }
+  },
+  "ranking": [
+    {
+      "position": 1,
+      "name": "AI",
+      "score": 21480
+    },
+    {
+      "position": 2,
+      "name": "P1",
+      "score": 16540
+    },
+    {
+      "position": 3,
+      "name": "P2",
+      "score": 15320
+    }
+  ]
+}
